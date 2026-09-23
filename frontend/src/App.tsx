@@ -1,8 +1,8 @@
-import { useEffect, useMemo, useState } from 'react';
-import { Alert, Button, Card, Col, ConfigProvider, Form, Layout, Progress, Radio, Row, Select, Space, Statistic, Table, Tag, Typography } from 'antd';
-import { BookOutlined, ClockCircleOutlined, CrownOutlined, ExperimentOutlined, ReloadOutlined } from '@ant-design/icons';
-import { api } from '@/api/client';
+import { useEffect } from 'react';
+import { Alert, Button, Card, Col, ConfigProvider, Layout, Progress, Row, Space, Statistic, Table, Typography } from 'antd';
+import { BookOutlined, ClockCircleOutlined, CrownOutlined, ReloadOutlined } from '@ant-design/icons';
 import { AbilityRadar } from '@/components/AbilityRadar';
+import { PracticePanel } from '@/components/PracticePanel';
 import { useBankStore } from '@/store/useBankStore';
 
 const { Content } = Layout;
@@ -10,21 +10,10 @@ const { Title, Paragraph, Text } = Typography;
 
 function App() {
   const { dashboard, loading, error, loadDashboard, demoLogin } = useBankStore();
-  const [difficulty, setDifficulty] = useState('中级');
-  const [amount, setAmount] = useState(10);
-  const [answers, setAnswers] = useState<Record<number, string>>({});
-  const [report, setReport] = useState<string[]>([]);
 
   useEffect(() => {
     loadDashboard();
   }, [loadDashboard]);
-
-  const paper = useMemo(() => dashboard?.paper ?? [], [dashboard]);
-
-  async function submitExam() {
-    const result = await api.submitExam(answers);
-    setReport([`得分 ${result.score}`, result.rank_hint, ...result.analysis]);
-  }
 
   return (
     <ConfigProvider theme={{ token: { borderRadius: 8, colorPrimary: '#2f6b57' } }}>
@@ -55,38 +44,7 @@ function App() {
 
               <Row gutter={[16, 16]} className="block">
                 <Col xs={24} lg={15}>
-                  <Card title="智能组卷练习" extra={<Tag color="green">限时考试可扩展</Tag>}>
-                    <Form layout="inline" className="paper-form">
-                      <Form.Item label="难度">
-                        <Select value={difficulty} onChange={setDifficulty} options={['入门', '初级', '中级', '高级', '专家'].map((value) => ({ value, label: value }))} />
-                      </Form.Item>
-                      <Form.Item label="题量">
-                        <Select value={amount} onChange={setAmount} options={[10, 20, 30, 50].map((value) => ({ value, label: `${value} 题` }))} />
-                      </Form.Item>
-                      <Button icon={<ExperimentOutlined />} onClick={() => api.generatePaper(difficulty, amount)}>生成试卷</Button>
-                    </Form>
-
-                    <Space direction="vertical" size={16} className="question-list">
-                      {paper.map((question, index) => (
-                        <Card key={question.id} size="small" className="question-card">
-                          <Space wrap className="question-meta">
-                            <Tag>{question.type}</Tag>
-                            <Tag color="blue">{question.difficulty}</Tag>
-                            <Tag color="gold">{question.knowledge}</Tag>
-                          </Space>
-                          <Title level={5}>{index + 1}. {question.stem}</Title>
-                          <Radio.Group value={answers[question.id]} onChange={(event) => setAnswers({ ...answers, [question.id]: event.target.value })}>
-                            <Space direction="vertical">
-                              {question.options.map((option) => <Radio key={option} value={option}>{option}</Radio>)}
-                            </Space>
-                          </Radio.Group>
-                          <Paragraph className="explain">解析：{question.explanation}</Paragraph>
-                        </Card>
-                      ))}
-                    </Space>
-                    <Button type="primary" className="submit" onClick={submitExam}>提交并生成报告</Button>
-                    {report.length > 0 && <Alert type="success" message="考试报告" description={report.join('；')} showIcon className="block" />}
-                  </Card>
+                  <PracticePanel />
                 </Col>
 
                 <Col xs={24} lg={9}>

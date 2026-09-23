@@ -3,7 +3,9 @@ from rest_framework.decorators import api_view
 from rest_framework.response import Response
 from rest_framework_simplejwt.tokens import RefreshToken
 
+from bank.models import PaperSnapshot
 from bank.serializers import GeneratePaperSerializer, SubmitExamSerializer
+from bank.services import generate_paper, pool_summary, serialize_snapshot
 
 
 QUESTIONS = [
@@ -89,12 +91,47 @@ def dashboard(_request):
 
 
 @api_view(["POST"])
-def generate_paper(request):
+def generate_paper_view(request):
+    """生成新试卷：去重抽题、题型均衡、相邻难度补入，并留下带编号快照。"""
     serializer = GeneratePaperSerializer(data=request.data)
     serializer.is_valid(raise_exception=True)
-    amount = int(serializer.validated_data["amount"])
-    repeated = (QUESTIONS * ((amount // len(QUESTIONS)) + 1))[:amount]
-    return Response({"paper": repeated})
+    paper = generate_paper(
+        difficulty=serializer.validated_data["difficulty"],
+        amount=int(serializer.validated_data["amount"]),
+    )
+    return Response({"paper": paper})
+
+
+@api_view(["GET"])
+def paper_detail(request, paper_no: int):
+    """按编号回查旧试卷：返回的题目、顺序、难度标记与生成时完全一致。"""
+    snapshot = PaperSnapshot.objects.filter(paper_no=paper_no).first()
+    if snapshot is None:
+        return Response({"detail": f"未找到编号为 JP-{paper_no:04d} 的试卷。"}, status=404)
+    return Response({"paper": serialize_snapshot(snapshot)})
+
+
+@api_view(["GET"])
+def paper_history(_request):
+    """已生成试卷的历史列表，便于按编号回查。"""
+    snapshots = PaperSnapshot.objects.order_by("-paper_no")[:50]
+    papers = [
+        {
+            "paperNo": snapshot.paper_no,
+            "paperCode": f"JP-{snapshot.paper_no:04d}",
+            "difficulty": snapshot.requested_difficulty,
+            "requestedAmount": snapshot.requested_amount,
+            "actualAmount": snapshot.actual_amount,
+            "replacementCount": snapshot.replacement_count,
+            "replacementNote": snapshot.replacement_note,
+            "shortage": snapshot.actual_amount < snapshot.requested_amount,
+            "shortageCount": snapshot.requested_amount - snapshot.actual_amount,
+            "typeGaps": snapshot.type_gaps,
+            "createdAt": snapshot.created_at.isoformat() if snapshot.created_at else None,
+        }
+        for snapshot in snapshots
+    ]
+    return Response({"papers": papers, "pool": pool_summary()})
 
 
 @api_view(["POST"])
@@ -102,11 +139,27 @@ def submit_exam(request):
     serializer = SubmitExamSerializer(data=request.data)
     serializer.is_valid(raise_exception=True)
     answers = serializer.validated_data.get("answers", {})
-    correct = sum(1 for question in QUESTIONS if answers.get(str(question["id"])) == question["answer"])
-    score = round(correct / len(QUESTIONS) * 100)
+    paper_no = serializer.validated_data.get("paper_no")
+
+    if paper_no is not None:
+        snapshot = PaperSnapshot.objects.filter(paper_no=paper_no).first()
+        if snapshot is None:
+            return Response({"detail": f"未找到编号为 JP-{paper_no:04d} 的试卷。"}, status=404)
+        questions = snapshot.questions
+        paper_label = f"JP-{snapshot.paper_no:04d}"
+    else:
+        questions = QUESTIONS
+        paper_label = "示例试卷"
+
+    correct = sum(1 for question in questions if answers.get(str(question["id"])) == question["answer"])
+    total = len(questions)
+    score = round(correct / total * 100) if total else 0
     return Response(
         {
             "score": score,
+            "paperCode": paper_label,
+            "correctCount": correct,
+            "totalCount": total,
             "rank_hint": "本次表现接近黄金 I，继续强化图形推理可冲击铂金。",
             "analysis": ["数字推理稳定", "图形旋转规律仍需复盘", "演绎推理建议练习充分必要条件"],
         }

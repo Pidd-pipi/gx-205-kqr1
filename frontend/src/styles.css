@@ -63,6 +63,23 @@ body {
   margin-bottom: 16px;
 }
 
+.lookup-bar {
+  width: 100%;
+  margin-bottom: 16px;
+}
+
+.history-select {
+  min-width: 320px;
+}
+
+.paper-meta {
+  margin-bottom: 16px;
+}
+
+.paper-empty {
+  padding: 32px 0;
+}
+
 .question-list {
   width: 100%;
 }
