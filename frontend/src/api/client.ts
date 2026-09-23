@@ -1,4 +1,4 @@
-import type { Dashboard } from '@/types/bank';
+import type { Dashboard, ExamReport, PaperSnapshot } from '@/types/bank';
 
 const API_BASE = '/api';
 
@@ -21,14 +21,15 @@ export const api = {
   health: () => request<{ status: string; service: string }>('/health/'),
   dashboard: () => request<Dashboard>('/dashboard/'),
   generatePaper: (difficulty: string, amount: number) =>
-    request<{ paper: Dashboard['paper'] }>('/papers/generate/', {
+    request<PaperSnapshot>('/papers/generate/', {
       method: 'POST',
       body: JSON.stringify({ difficulty, amount })
     }),
-  submitExam: (answers: Record<number, string>) =>
-    request<{ score: number; rank_hint: string; analysis: string[] }>('/exams/submit/', {
+  getPaper: (number: number) => request<PaperSnapshot>(`/papers/${number}/`),
+  submitExam: (paperNumber: number, answers: Record<number, string>) =>
+    request<ExamReport>('/exams/submit/', {
       method: 'POST',
-      body: JSON.stringify({ answers })
+      body: JSON.stringify({ paper_number: paperNumber, answers })
     }),
   demoLogin: () =>
     request<{ access: string; refresh: string }>('/auth/demo-login/', {

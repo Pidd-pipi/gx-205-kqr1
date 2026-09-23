@@ -19,7 +19,7 @@ docker compose up -d
 ## 项目主要功能
 
 - 题型分类题库：覆盖数字推理、图形推理、逻辑判断、类比推理、演绎推理。
-- 智能组卷练习：支持按难度和题量生成练习卷。
+- 智能组卷练习：按难度和题量生成练习卷，每次生成落库为带编号的试卷快照，可按编号回查；卷内不重题，五种题型数量相差不超过 1；当前难度不足时从相邻难度补入并标注替换数量，题池仍不足则返回实际题量和各类型缺口，绝不重复填充。
 - 答题与解析：在线选择答案，查看解析步骤和知识点说明。
 - 错题本与收藏：记录错误次数和最后练习时间，便于专项复盘。
 - 模拟考试模式：提供提交接口和成绩报告骨架。
@@ -59,14 +59,26 @@ python manage.py runserver 0.0.0.0:19505
 | 数据库 | PostgreSQL 15 |
 | 部署 | Docker Compose、Nginx、Gunicorn |
 
+## 主要 API
+
+| 方法 | 路径 | 说明 |
+| --- | --- | --- |
+| POST | `/api/papers/generate/` | 按难度、题量生成试卷，落库为带编号的快照并返回 |
+| GET | `/api/papers/<编号>/` | 按编号回查历史试卷，题目、顺序和难度标记与生成时一致 |
+| POST | `/api/exams/submit/` | 提交 `paper_number` 与答案，按快照判分并返回报告 |
+| GET | `/api/dashboard/` | 学习进度、题型统计、错题本、排行榜示例数据 |
+
 ## 项目目录结构
 
 ```text
 .
 ├── backend/
 │   ├── bank/
+│   │   ├── migrations/
 │   │   ├── models.py
+│   │   ├── question_bank.py
 │   │   ├── serializers.py
+│   │   ├── services.py
 │   │   ├── urls.py
 │   │   └── views.py
 │   ├── config/

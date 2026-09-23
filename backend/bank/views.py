@@ -1,43 +1,12 @@
 from django.contrib.auth import get_user_model
+from django.shortcuts import get_object_or_404
 from rest_framework.decorators import api_view
 from rest_framework.response import Response
 from rest_framework_simplejwt.tokens import RefreshToken
 
+from bank.models import PaperSnapshot
 from bank.serializers import GeneratePaperSerializer, SubmitExamSerializer
-
-
-QUESTIONS = [
-    {
-        "id": 101,
-        "type": "数字推理",
-        "difficulty": "中级",
-        "stem": "2，6，12，20，30，下一项是多少？",
-        "options": ["38", "40", "42", "44"],
-        "answer": "42",
-        "explanation": "相邻差为 4、6、8、10，下一差为 12，因此答案为 42。",
-        "knowledge": "二级等差",
-    },
-    {
-        "id": 102,
-        "type": "逻辑判断",
-        "difficulty": "中级",
-        "stem": "所有通过高阶训练的人都完成错题复盘，小林完成高阶训练，可推出什么？",
-        "options": ["小林完成错题复盘", "小林没有错题", "小林排名第一", "无法判断"],
-        "answer": "小林完成错题复盘",
-        "explanation": "这是充分条件推理：完成高阶训练可以推出完成错题复盘。",
-        "knowledge": "充分条件",
-    },
-    {
-        "id": 103,
-        "type": "类比推理",
-        "difficulty": "初级",
-        "stem": "医生：诊断，相当于教师：？",
-        "options": ["备课", "授课", "批改", "讲解"],
-        "answer": "授课",
-        "explanation": "职业与核心工作行为对应，医生核心行为是诊断，教师核心行为是授课。",
-        "knowledge": "职业关系",
-    },
-]
+from bank.services import assemble_paper, count_by_type
 
 
 def build_dashboard() -> dict:
@@ -57,7 +26,6 @@ def build_dashboard() -> dict:
             {"id": 4, "name": "类比推理", "accuracy": 84, "total": 210},
             {"id": 5, "name": "演绎推理", "accuracy": 80, "total": 210},
         ],
-        "paper": QUESTIONS,
         "wrongBook": [
             {"id": 1, "title": "集合包含关系反推", "type": "演绎推理", "mistakes": 5, "lastPracticed": "05-28"},
             {"id": 2, "title": "九宫格旋转规律", "type": "图形推理", "mistakes": 4, "lastPracticed": "05-27"},
@@ -78,6 +46,20 @@ def build_dashboard() -> dict:
     }
 
 
+def serialize_snapshot(snapshot: PaperSnapshot) -> dict:
+    return {
+        "number": snapshot.id,
+        "difficulty": snapshot.difficulty,
+        "requestedAmount": snapshot.requested_amount,
+        "actualAmount": snapshot.actual_amount,
+        "typeCounts": count_by_type(snapshot.questions),
+        "replacements": snapshot.replacements,
+        "gaps": snapshot.gaps,
+        "questions": snapshot.questions,
+        "createdAt": snapshot.created_at.isoformat() if snapshot.created_at else None,
+    }
+
+
 @api_view(["GET"])
 def health(_request):
     return Response({"status": "ok", "service": "gxlogic-bank-backend"})
@@ -92,23 +74,65 @@ def dashboard(_request):
 def generate_paper(request):
     serializer = GeneratePaperSerializer(data=request.data)
     serializer.is_valid(raise_exception=True)
+    difficulty = serializer.validated_data["difficulty"]
     amount = int(serializer.validated_data["amount"])
-    repeated = (QUESTIONS * ((amount // len(QUESTIONS)) + 1))[:amount]
-    return Response({"paper": repeated})
+
+    plan = assemble_paper(difficulty, amount)
+    snapshot = PaperSnapshot.objects.create(
+        difficulty=difficulty,
+        requested_amount=plan["requestedAmount"],
+        actual_amount=plan["actualAmount"],
+        questions=plan["questions"],
+        replacements=plan["replacements"],
+        gaps=plan["gaps"],
+    )
+    return Response(serialize_snapshot(snapshot))
+
+
+@api_view(["GET"])
+def paper_detail(_request, number):
+    snapshot = get_object_or_404(PaperSnapshot, pk=number)
+    return Response(serialize_snapshot(snapshot))
 
 
 @api_view(["POST"])
 def submit_exam(request):
     serializer = SubmitExamSerializer(data=request.data)
     serializer.is_valid(raise_exception=True)
+    snapshot = get_object_or_404(PaperSnapshot, pk=serializer.validated_data["paper_number"])
     answers = serializer.validated_data.get("answers", {})
-    correct = sum(1 for question in QUESTIONS if answers.get(str(question["id"])) == question["answer"])
-    score = round(correct / len(QUESTIONS) * 100)
+
+    questions = snapshot.questions
+    correct = sum(1 for q in questions if answers.get(str(q["id"])) == q["answer"])
+    total = len(questions)
+    score = round(correct / total * 100) if total else 0
+
+    type_stats = {}
+    for question in questions:
+        hit, seen = type_stats.get(question["type"], (0, 0))
+        type_stats[question["type"]] = (
+            hit + (1 if answers.get(str(question["id"])) == question["answer"] else 0),
+            seen + 1,
+        )
+    analysis = [f"{name} {hit}/{seen} 正确" for name, (hit, seen) in type_stats.items()]
+
+    if score >= 90:
+        rank_hint = "本次表现达到钻石水准，继续保持。"
+    elif score >= 75:
+        rank_hint = "本次表现接近铂金，错题复盘后可冲击钻石。"
+    elif score >= 60:
+        rank_hint = "本次表现约为黄金，建议针对薄弱题型加练。"
+    else:
+        rank_hint = "本次表现待提升，建议从入门难度重新巩固。"
+
     return Response(
         {
+            "paper_number": snapshot.id,
             "score": score,
-            "rank_hint": "本次表现接近黄金 I，继续强化图形推理可冲击铂金。",
-            "analysis": ["数字推理稳定", "图形旋转规律仍需复盘", "演绎推理建议练习充分必要条件"],
+            "correct": correct,
+            "total": total,
+            "rank_hint": rank_hint,
+            "analysis": analysis,
         }
     )
 

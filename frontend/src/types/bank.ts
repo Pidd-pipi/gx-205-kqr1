@@ -16,6 +16,44 @@ export interface Question {
   knowledge: string;
 }
 
+export interface PaperQuestion extends Question {
+  /** true 表示该题由相邻难度补入 */
+  substituted: boolean;
+}
+
+export interface ReplacementNote {
+  type: string;
+  count: number;
+  /** 各相邻难度分别补入的题数，如 { "初级": 2, "高级": 1 } */
+  from: Record<string, number>;
+}
+
+export interface TypeGap {
+  type: string;
+  missing: number;
+}
+
+export interface PaperSnapshot {
+  number: number;
+  difficulty: string;
+  requestedAmount: number;
+  actualAmount: number;
+  typeCounts: Record<string, number>;
+  replacements: ReplacementNote[];
+  gaps: TypeGap[];
+  questions: PaperQuestion[];
+  createdAt: string | null;
+}
+
+export interface ExamReport {
+  paper_number: number;
+  score: number;
+  correct: number;
+  total: number;
+  rank_hint: string;
+  analysis: string[];
+}
+
 export interface Ranking {
   rank: number;
   name: string;
@@ -42,7 +80,6 @@ export interface Dashboard {
     practiceMinutes: number;
   };
   categories: Category[];
-  paper: Question[];
   wrongBook: WrongBookItem[];
   rankings: Ranking[];
   radar: { axis: string; value: number }[];

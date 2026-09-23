@@ -24,6 +24,28 @@ class LogicQuestion(models.Model):
         return self.title
 
 
+class PaperSnapshot(models.Model):
+    """组卷快照：每次生成落库一条，编号即主键。
+
+    题目、顺序和难度标记以 JSON 原样保存，
+    同一编号再次打开时内容完全一致。
+    """
+
+    difficulty = models.CharField(max_length=16)
+    requested_amount = models.PositiveIntegerField()
+    actual_amount = models.PositiveIntegerField()
+    questions = models.JSONField(default=list)
+    replacements = models.JSONField(default=list)
+    gaps = models.JSONField(default=list)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-id"]
+
+    def __str__(self) -> str:
+        return f"试卷 No.{self.id:04d}"
+
+
 class WrongBookEntry(models.Model):
     user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
     question = models.ForeignKey(LogicQuestion, on_delete=models.CASCADE)

@@ -7,4 +7,5 @@ class GeneratePaperSerializer(serializers.Serializer):
 
 
 class SubmitExamSerializer(serializers.Serializer):
-    answers = serializers.DictField(child=serializers.CharField(), required=False)
+    paper_number = serializers.IntegerField(min_value=1)
+    answers = serializers.DictField(child=serializers.CharField(), required=False, default=dict)
