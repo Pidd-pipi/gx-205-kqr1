@@ -1,0 +1,134 @@
+:root {
+  font-family: Inter, "PingFang SC", "Microsoft YaHei", sans-serif;
+  color: #18251f;
+  background: #edf2ef;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  min-width: 320px;
+  margin: 0;
+  background: #edf2ef;
+}
+
+.page {
+  min-height: 100vh;
+  background: #edf2ef;
+}
+
+.shell {
+  width: min(1220px, calc(100vw - 32px));
+  margin: 0 auto;
+  padding: 28px 0 48px;
+}
+
+.hero {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+  min-height: 220px;
+  padding: 32px;
+  color: #f8fcf9;
+  background: linear-gradient(135deg, #1d3c34 0%, #4b8066 54%, #c59d4a 100%);
+  border-radius: 8px;
+}
+
+.hero .ant-typography {
+  color: inherit;
+}
+
+.hero h1.ant-typography {
+  margin: 8px 0 12px;
+  font-size: 40px;
+  letter-spacing: 0;
+}
+
+.eyebrow {
+  display: block;
+  color: #dcefe6;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.block {
+  margin-top: 16px;
+}
+
+.paper-form {
+  gap: 10px;
+  margin-bottom: 16px;
+}
+
+.question-list {
+  width: 100%;
+}
+
+.question-card {
+  background: #fbfdfc;
+}
+
+.question-meta {
+  margin-bottom: 8px;
+}
+
+.explain {
+  margin: 14px 0 0;
+  color: #5f6f68;
+}
+
+.submit {
+  margin-top: 16px;
+}
+
+.stacked {
+  margin-top: 16px;
+}
+
+.category-row + .category-row {
+  margin-top: 12px;
+}
+
+.radar {
+  display: grid;
+  gap: 14px;
+}
+
+.radar-row {
+  display: grid;
+  grid-template-columns: 86px 1fr 36px;
+  gap: 10px;
+  align-items: center;
+}
+
+.radar-track {
+  height: 10px;
+  overflow: hidden;
+  background: #dfe9e3;
+  border-radius: 999px;
+}
+
+.radar-track i {
+  display: block;
+  height: 100%;
+  background: linear-gradient(90deg, #2f6b57, #d19b45);
+}
+
+@media (max-width: 760px) {
+  .hero {
+    align-items: flex-start;
+    flex-direction: column;
+    padding: 24px;
+  }
+
+  .hero h1.ant-typography {
+    font-size: 32px;
+  }
+
+  .paper-form {
+    display: grid;
+  }
+}
